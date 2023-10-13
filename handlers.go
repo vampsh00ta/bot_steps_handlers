@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"regexp"
 	"strings"
 
@@ -121,4 +122,46 @@ func (b *Bot) UnregisterHandler(id string) {
 	defer b.handlersMx.Unlock()
 
 	delete(b.handlers, id)
+}
+
+func (bot *Bot) RegisterStepHandler(ctx context.Context, update *models.Update, nextFunc HandlerFunc, data any) {
+	bot.stepMx.RLock()
+	me, _ := bot.GetMe(ctx)
+	stepId, ok := bot.stepHandlerId[me.ID]
+	bot.stepMx.RUnlock()
+
+	if ok {
+		bot.UnregisterHandler(stepId)
+
+	}
+	bot.stepMx.Lock()
+	defer bot.stepMx.Unlock()
+	stepId = bot.RegisterHandler(HandlerTypeMessageText, "", MatchTypeContains, nextFunc)
+	bot.stepHanderData[stepId] = data
+	bot.stepHandlerId[me.ID] = stepId
+
+}
+func (bot *Bot) UnregisterStepHandler(ctx context.Context, update *models.Update) interface{} {
+	me, _ := bot.GetMe(ctx)
+	stepId, ok := bot.stepHandlerId[me.ID]
+	if !ok {
+		return nil
+
+	}
+	bot.handlersMx.Lock()
+	data := bot.stepHanderData[stepId]
+	delete(bot.stepHanderData, stepId)
+	delete(bot.stepHandlerId, me.ID)
+	bot.handlersMx.Unlock()
+	bot.UnregisterHandler(stepId)
+	return data
+}
+func (bot *Bot) GetStepData(ctx context.Context, update *models.Update) interface{} {
+	me, _ := bot.GetMe(ctx)
+	stepId, ok := bot.stepHandlerId[me.ID]
+	if !ok {
+		return nil
+
+	}
+	return bot.stepHanderData[stepId]
 }
