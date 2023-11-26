@@ -47,8 +47,8 @@ type Bot struct {
 	handlers   map[string]handler
 
 	stepMx         *sync.RWMutex
-	stepHandlerId  map[int64]string
-	stepHanderData map[string]interface{}
+	stepHandlers   map[int64]string
+	stepHanderData map[int64]interface{}
 
 	client           HttpClient
 	lastUpdateID     int64
@@ -73,8 +73,8 @@ func New(token string, options ...Option) (*Bot, error) {
 		handlersMx:     &sync.RWMutex{},
 		handlers:       map[string]handler{},
 		stepMx:         &sync.RWMutex{},
-		stepHandlerId:  make(map[int64]string),
-		stepHanderData: make(map[string]interface{}),
+		stepHandlers:   make(map[int64]string),
+		stepHanderData: make(map[int64]interface{}),
 		client: &http.Client{
 			Timeout: defaultPollTimeout,
 		},

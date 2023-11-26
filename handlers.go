@@ -1,7 +1,7 @@
 package bot
 
 import (
-	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -30,23 +30,30 @@ type handler struct {
 	handlerType HandlerType
 	matchType   MatchType
 	handler     HandlerFunc
-
-	pattern   string
-	re        *regexp.Regexp
-	matchFunc MatchFunc
+	userId      int64
+	pattern     string
+	fmt         interface{}
+	re          *regexp.Regexp
+	matchFunc   MatchFunc
 }
 
+func (h *handler) fsm(id int64) {
+	h.userId = id
+}
 func (h handler) match(update *models.Update) bool {
 	if h.matchType == matchTypeFunc {
 		return h.matchFunc(update)
 	}
-
+	fmt.Println(h.userId)
 	var data string
 	switch h.handlerType {
 	case HandlerTypeMessageText:
 		data = update.Message.Text
 	case HandlerTypeCallbackQueryData:
 		data = update.CallbackQuery.Data
+	}
+	if h.userId != 0 && update.Message.From.ID != h.userId {
+		return false
 	}
 
 	if h.matchType == MatchTypeExact {
@@ -124,44 +131,61 @@ func (b *Bot) UnregisterHandler(id string) {
 	delete(b.handlers, id)
 }
 
-func (bot *Bot) RegisterStepHandler(ctx context.Context, update *models.Update, nextFunc HandlerFunc, data any) {
-	bot.stepMx.RLock()
-	me, _ := bot.GetMe(ctx)
-	stepId, ok := bot.stepHandlerId[me.ID]
-	bot.stepMx.RUnlock()
+func (b *Bot) RegisterStepHandler(userId int64, nextFunc HandlerFunc, data interface{}) string {
+	b.UnregisterStepHandler(userId)
+	b.handlersMx.Lock()
+	defer b.handlersMx.Unlock()
 
-	if ok {
-		bot.UnregisterHandler(stepId)
+	id := RandomString(16)
 
+	h := handler{
+		handlerType: HandlerTypeMessageText,
+		matchType:   MatchTypeContains,
+		pattern:     "",
+		handler:     nextFunc,
+		userId:      userId,
+		fmt:         data,
 	}
-	bot.stepMx.Lock()
-	defer bot.stepMx.Unlock()
-	stepId = bot.RegisterHandler(HandlerTypeMessageText, "", MatchTypeContains, nextFunc)
-	bot.stepHanderData[stepId] = data
-	bot.stepHandlerId[me.ID] = stepId
+
+	b.handlers[id] = h
+	b.stepHandlers[userId] = id
+	b.stepHanderData[userId] = data
+
+	return id
 
 }
-func (bot *Bot) UnregisterStepHandler(ctx context.Context, update *models.Update) interface{} {
-	me, _ := bot.GetMe(ctx)
-	stepId, ok := bot.stepHandlerId[me.ID]
+
+//bot.stepMx.RLock()
+//me, _ := bot.GetMe(ctx)
+//stepId, ok := bot.stepHandlerId[me.ID]
+//bot.stepMx.RUnlock()
+//
+//if ok {
+//bot.UnregisterHandler(stepId)
+//
+//}
+//bot.stepMx.Lock()
+//defer bot.stepMx.Unlock()
+//stepId = bot.RegisterHandler(HandlerTypeMessageText, "", MatchTypeContains, nextFunc)
+//bot.stepHanderData[stepId] = data
+//bot.stepHandlerId[me.ID] = stepId
+
+func (b *Bot) GetStepData(userId int64) interface{} {
+	b.stepMx.Lock()
+	defer b.stepMx.Unlock()
+	data, ok := b.stepHanderData[userId]
 	if !ok {
 		return nil
-
 	}
-	bot.handlersMx.Lock()
-	data := bot.stepHanderData[stepId]
-	delete(bot.stepHanderData, stepId)
-	delete(bot.stepHandlerId, me.ID)
-	bot.handlersMx.Unlock()
-	bot.UnregisterHandler(stepId)
 	return data
 }
-func (bot *Bot) GetStepData(ctx context.Context, update *models.Update) interface{} {
-	me, _ := bot.GetMe(ctx)
-	stepId, ok := bot.stepHandlerId[me.ID]
-	if !ok {
-		return nil
+func (b *Bot) UnregisterStepHandler(userId int64) {
+	b.handlersMx.Lock()
+	defer b.handlersMx.Unlock()
 
-	}
-	return bot.stepHanderData[stepId]
+	id := b.stepHandlers[userId]
+
+	delete(b.handlers, id)
+	delete(b.stepHandlers, userId)
+
 }
