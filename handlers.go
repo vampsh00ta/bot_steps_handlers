@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -37,14 +36,10 @@ type handler struct {
 	matchFunc   MatchFunc
 }
 
-func (h *handler) fsm(id int64) {
-	h.userId = id
-}
 func (h handler) match(update *models.Update) bool {
 	if h.matchType == matchTypeFunc {
 		return h.matchFunc(update)
 	}
-	fmt.Println(h.userId)
 	var data string
 	switch h.handlerType {
 	case HandlerTypeMessageText:
@@ -154,21 +149,6 @@ func (b *Bot) RegisterStepHandler(userId int64, nextFunc HandlerFunc, data inter
 	return id
 
 }
-
-//bot.stepMx.RLock()
-//me, _ := bot.GetMe(ctx)
-//stepId, ok := bot.stepHandlerId[me.ID]
-//bot.stepMx.RUnlock()
-//
-//if ok {
-//bot.UnregisterHandler(stepId)
-//
-//}
-//bot.stepMx.Lock()
-//defer bot.stepMx.Unlock()
-//stepId = bot.RegisterHandler(HandlerTypeMessageText, "", MatchTypeContains, nextFunc)
-//bot.stepHanderData[stepId] = data
-//bot.stepHandlerId[me.ID] = stepId
 
 func (b *Bot) GetStepData(userId int64) interface{} {
 	b.stepMx.Lock()
