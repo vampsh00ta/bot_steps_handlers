@@ -31,7 +31,6 @@ type handler struct {
 	handler     HandlerFunc
 	userId      int64
 	pattern     string
-	fmt         interface{}
 	re          *regexp.Regexp
 	matchFunc   MatchFunc
 }
@@ -139,7 +138,6 @@ func (b *Bot) RegisterStepHandler(userId int64, nextFunc HandlerFunc, data inter
 		pattern:     "",
 		handler:     nextFunc,
 		userId:      userId,
-		fmt:         data,
 	}
 
 	b.handlers[id] = h
