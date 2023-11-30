@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,7 +27,10 @@ func (b *Bot) waitUpdates(ctx context.Context, wg *sync.WaitGroup) {
 				go func(ctx context.Context, wg *sync.WaitGroup, taskQueue chan *models.Update) {
 					defer wg.Done()
 
+					fmt.Println(upd, 1)
+
 					b.ProcessUpdate(ctx, upd)
+					fmt.Println(upd, 2)
 
 					const cleanupDuration = 10 * time.Second
 					cleanupTicker := time.NewTicker(cleanupDuration)
